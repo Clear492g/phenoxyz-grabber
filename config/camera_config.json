@@ -1,0 +1,16 @@
+{
+  "autofocus": true,
+  "focus_value": 50,
+  "interval_sec": 1.0,
+  "cam_name_keyword": "Depstech webcam",
+  "cam_preview_width": 1920,
+  "cam_preview_height": 1080,
+  "cam_focus_max": 127,
+  "save_dir": "camera_images",
+  "png_compression": 3,
+  "save_format": "jpg",
+  "jpeg_quality": 92,
+  "ui_preview_width": 960,
+  "ui_preview_height": 540,
+  "save_workers": 2
+}

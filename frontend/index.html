@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Modbus 上位机控制页</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <h1>Pheno-XYZ表型平台控制系统</h1>
+  <div class="grid">
+    <div class="card">
+      <h2>读数区（当前速度 / 当前位置）</h2>
+      <div id="readings"></div>
+    </div>
+
+    <div class="card">
+      <h2>二维预览</h2>
+      <div id="bounds-info" class="label" style="margin-bottom:8px;"></div>
+      <div class="preview">
+        <canvas id="xy-canvas"></canvas>
+      </div>
+      <div class="legend-inline">
+        <span class="legend-item route">路径</span>
+        <span class="legend-item point">路径点</span>
+        <span class="legend-item current">当前位置</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>坐标与指令（读写寄存器 + 脉冲线圈）</h2>
+      <div class="row">
+        <div style="flex:1;">
+          <label for="cx">X 指定坐标（D 0x0058）</label>
+          <input id="cx" type="number" placeholder="1-1989" />
+        </div>
+        <div style="flex:1;">
+          <label for="cy">Y 指定坐标（D 0x005A）</label>
+          <input id="cy" type="number" placeholder="1-1989" />
+        </div>
+      </div>
+      <div class="row">
+        <div style="flex:1;">
+          <label for="cz">Z 指定坐标（D 0x005C）</label>
+          <input id="cz" type="number" placeholder="0-192" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="muted-btn" onclick="writeCoords()">写入坐标</button>
+      </div>
+      <div class="row" style="margin-top:6px;">
+        <button onclick="pulse('xy_go_target')">下达指令：X/Y 指定位置 (M 0x0033)</button>
+        <button onclick="pulse('z_go_target')">下达指令：Z 指定位置 (M 0x004C)</button>
+      </div>
+      <div class="row">
+        <button class="muted-btn" onclick="pulse('xy_home')">X/Y 回原点 (M 0x0047)</button>
+        <button class="muted-btn" onclick="pulse('z_home')">Z 回原点 (M 0x004D)</button>
+      </div>
+      <div class="row">
+        <button class="danger" onclick="pulse('xy_stop')">X/Y 停止 (M 0x004B)</button>
+        <button class="danger" onclick="pulse('z_stop')">Z 停止 (M 0x0053)</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>速度设置（读写 D 寄存器）</h2>
+      <div class="row">
+        <div style="flex:1;">
+          <label for="vx">X 设置速度（D 0x0048）</label>
+          <input id="vx" type="number" placeholder="1-1000，建议≤700" />
+        </div>
+        <div style="flex:1;">
+          <label for="vy">Y 设置速度（D 0x004E）</label>
+          <input id="vy" type="number" placeholder="1-1000，建议≤700" />
+        </div>
+      </div>
+      <div class="row">
+        <div style="flex:1;">
+          <label for="vz">Z 设置速度（D 0x0050）</label>
+          <input id="vz" type="number" placeholder="1-1000，建议≤700" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button onclick="writeSpeeds()">写入速度</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>外设控制（线圈脉冲）</h2>
+      <div id="peripherals"></div>
+    </div>
+
+    <div class="card">
+      <h2>自动化任务</h2>
+      <div class="row" style="align-items:center; gap:8px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:220px;">
+          <label for="route-select">选择路径</label>
+          <select id="route-select" style="width:100%; padding:9px 10px; border-radius:10px; border:1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--text);" onchange="onRouteChange()"></select>
+        </div>
+        <div class="row" style="gap:6px; flex-wrap:wrap;">
+          <button class="muted-btn" onclick="openRouteEditor()">编辑</button>
+          <button class="muted-btn" onclick="addRoute()">新增</button>
+          <button class="muted-btn danger" onclick="deleteRoute()">删除</button>
+          <button class="muted-btn" onclick="renameRoute()">重命名</button>
+        </div>
+      </div>
+      <div class="row" style="gap:8px; flex-wrap:wrap; margin-top:8px;">
+        <button id="start-run" onclick="toggleAutorun()">开始</button>
+        <button class="muted-btn" id="pause-run" onclick="togglePause()" disabled>暂停</button>
+      </div>
+      <div id="route-summary" class="pill" style="margin-top:8px;">
+        <div class="label">路径概要</div>
+        <div class="value" id="route-summary-text">--</div>
+      </div>
+      <div id="autorun-status" class="pill" style="margin-top:8px; justify-content:space-between;">
+        <div class="label">状态</div>
+        <div class="value" id="autorun-text">等待</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>可见光相机</h2>
+      <div class="preview">
+        <img id="cam-stream" src="" alt="camera preview" class="cam-img" />
+      </div>
+      <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px;">
+        <label><input type="checkbox" id="cam-autofocus"> 自动对焦</label>
+        <input type="range" id="cam-focus" min="0" max="127" step="1" value="50" style="flex:1; min-width:180px;">
+        <span class="badge" id="cam-focus-val">Focus: 50</span>
+      </div>
+      <div class="row" style="gap:8px; flex-wrap:wrap; margin-top:8px;">
+        <button id="cam-save" onclick="camSave()">保存图片</button>
+        <button id="cam-timed" class="muted-btn" onclick="camToggleTimed()">定时采集</button>
+      </div>
+      <div class="row" style="gap:8px; flex-wrap:wrap; margin-top:8px;">
+        <label>保存目录</label>
+        <input id="cam-save-dir" style="flex:1;" placeholder="绝对路径">
+        <button class="muted-btn" onclick="camApplyDir()">应用</button>
+      </div>
+      <div class="row" style="gap:8px; flex-wrap:wrap; margin-top:8px;">
+        <button class="muted-btn" onclick="openCamConfig()">修改UVC相机配置</button>
+      </div>
+      <div id="cam-info" class="label" style="margin-top:6px;">--</div>
+    </div>
+
+    <div class="card">
+      <h2>多光谱相机</h2>
+      <div class="preview">
+        <div class="label">六通道拼图（480/550/660/720/840/RGB）</div>
+        <img id="ms-stream-all" src="" alt="multispectral mosaic" class="cam-img" />
+      </div>
+      <div id="ms-info" class="label" style="margin-top:6px;">--</div>
+    </div>
+  </div>
+
+  <div id="modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 style="margin-top:0;">编辑路径</h3>
+      <textarea id="route-json" style="width:100%; min-height:220px; padding:10px;"></textarea>
+      <div class="row" style="gap:8px; margin-top:10px; justify-content:flex-end;">
+        <button class="muted-btn" onclick="closeRouteEditor()">取消</button>
+        <button onclick="saveRouteEdit()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cam-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 style="margin-top:0;">UVC相机配置</h3>
+      <textarea id="cam-config-json" style="width:100%; min-height:220px; padding:10px;"></textarea>
+      <div class="row" style="gap:8px; margin-top:10px; justify-content:flex-end;">
+        <button class="muted-btn" onclick="closeCamConfig()">取消</button>
+        <button onclick="camApplyConfig()">保存并重连</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script src="/main.js"></script>
+</body>
+</html>

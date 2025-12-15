@@ -1,0 +1,17 @@
+{
+  "autofocus": true,
+  "focus_value": 127,
+  "interval_sec": 0.1,
+  "cam_name_keyword": "Depstech webcam",
+  "cam_preview_width": 4080,
+  "cam_preview_height": 3060,
+  "cam_focus_max": 127,
+  "save_dir": "C:/Users/Clear/Desktop/新建文件夹",
+  "png_compression": 5,
+  "save_format": "jpg",
+  "jpeg_quality": 92,
+  "ui_preview_width": 1920,
+  "ui_preview_height": 1080,
+  "save_workers": 4,
+  "cam_name_keyword1": "FicVideo"
+}
